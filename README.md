@@ -15,8 +15,12 @@ Chromium proxy flags and proxy environment variables for child processes.
 ## Observed version and scope
 
 This workaround was created after a June 2026 Claude Desktop for Windows update
-and was locally verified against the MSIX/AppX package version `1.13576.0.0`
-(`Claude_1.13576.0.0_x64__pzs8sxrjxfjjc`).
+wave. The symptoms were not limited to one installer type: they may appear with
+MSIX/AppX builds as well as traditional EXE/Squirrel/Win32 installs.
+
+It was locally verified against the MSIX/AppX package version `1.13576.0.0`
+(`Claude_1.13576.0.0_x64__pzs8sxrjxfjjc`), and the launcher intentionally
+searches for both MSIX/AppX and Win32 install locations.
 
 It may also help nearby Windows builds with the same symptoms, but this project
 does not claim an official regression window. The practical symptom is that the
@@ -26,6 +30,11 @@ explicitly at launch can restore connectivity for that UI layer.
 
 ## When this may help
 
+- Claude Desktop fails to launch after an update, crashes immediately, or hangs
+  in Task Manager without showing a usable window.
+- Windows repeatedly suggests repairing/restoring the Claude app, but repair or
+  reinstalling over the existing app does not fix the startup loop.
+- Logs mention Electron/Chromium startup or GPU-process failures near launch.
 - Claude Desktop on Windows shows "Could not connect to Claude".
 - The app opens to a blank/white screen and logs show network failures such as
   `ERR_TIMED_OUT` or HTTP 403 while loading `https://claude.ai`.
