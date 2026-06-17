@@ -1,173 +1,153 @@
 # Claude Desktop Windows Proxy Launcher
 
-Unofficial workaround. Not affiliated with Anthropic. This project does not
-modify, patch, decompile, redistribute, or replace Anthropic software.
+Unofficial workaround for Claude Desktop on Windows when the app breaks after an
+update and cannot reach `claude.ai` through the same proxy/VPN path that works in
+your browser.
 
-Small workaround launcher for a specific Claude Desktop on Windows failure mode:
-the app is installed and starts, but the main Electron/Chromium UI cannot reach
-`claude.ai` through the user's Windows proxy, while Claude Code or other child
-processes may still respect `HTTP_PROXY` / `HTTPS_PROXY`.
+Not affiliated with Anthropic. This project does not modify, patch, decompile,
+redistribute, or replace Anthropic software.
 
-This launcher does not delete Claude data, does not modify the MSIX package, and
-does not change system proxy settings. It only starts `Claude.exe` with explicit
-Chromium proxy flags and proxy environment variables for child processes.
+## Emergency Quick Start
 
-## Why no EXE?
+Use this if Claude Desktop is crashing, stuck in a Windows Repair/Restore loop,
+showing a blank window, or saying "Could not connect to Claude".
 
-This project intentionally ships as a readable PowerShell script plus a tiny CMD
-wrapper instead of an unsigned EXE. An unsigned executable from a small GitHub
-repository is harder for users to audit and is more likely to trigger Windows
-SmartScreen or antivirus warnings.
+1. Download this repository as a ZIP:
+   <https://github.com/king-sheol/claude-desktop-windows-proxy-launcher/archive/refs/heads/main.zip>
+2. Extract the ZIP into a normal folder, for example:
+   `%USERPROFILE%\Documents\ClaudeDesktopProxyLauncher`
+3. Open that folder.
+4. Double-click:
+   `Start-ClaudeDesktopProxy.cmd`
 
-The CMD file is only a convenience wrapper for double-click launching. The real
-logic stays in `Start-ClaudeDesktopProxy.ps1`, where users can inspect exactly
-what will run before they run it.
+If you prefer PowerShell first, run a dry-run preview before launching:
 
-## Observed version and scope
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Start-ClaudeDesktopProxy.ps1 -DryRun
+```
 
-This workaround was created after a June 2026 Claude Desktop for Windows update
-wave. The symptoms were not limited to one installer type: they may appear with
-MSIX/AppX builds as well as traditional EXE/Squirrel/Win32 installs.
+Then launch Claude through the wrapper:
 
-It was locally verified against the MSIX/AppX package version `1.13576.0.0`
-(`Claude_1.13576.0.0_x64__pzs8sxrjxfjjc`), and the launcher intentionally
-searches for both MSIX/AppX and Win32 install locations.
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Start-ClaudeDesktopProxy.ps1 -RestartExisting
+```
 
-It may also help nearby Windows builds with the same symptoms, but this project
-does not claim an official regression window. The practical symptom is that the
-main Electron/Chromium UI appears unable to use the same proxy path that works in
-the browser or in some child processes. Passing Chromium's `--proxy-server`
-explicitly at launch can restore connectivity for that UI layer.
+## Does This Match Your Problem?
 
-## When this may help
+This may help if:
 
 - Claude Desktop fails to launch after an update, crashes immediately, or hangs
   in Task Manager without showing a usable window.
 - Windows repeatedly suggests repairing/restoring the Claude app, but repair or
   reinstalling over the existing app does not fix the startup loop.
+- Claude opens but shows "Could not connect to Claude".
+- Claude opens to a blank/white screen.
 - Logs mention Electron/Chromium startup or GPU-process failures near launch.
-- Claude Desktop on Windows shows "Could not connect to Claude".
-- The app opens to a blank/white screen and logs show network failures such as
-  `ERR_TIMED_OUT` or HTTP 403 while loading `https://claude.ai`.
+- Logs show network failures such as `ERR_TIMED_OUT` or HTTP 403 while loading
+  `https://claude.ai`.
 - Your browser can open Claude through the same proxy/VPN, but Claude Desktop
   cannot.
 - You use a local or corporate HTTP(S) proxy.
 
-## When this probably will not help
+This probably will not help if:
 
 - Cowork VM reaches "API UNREACHABLE" because the VM itself has no usable egress
   path through a corporate proxy.
 - Hyper-V, HNS, Virtual Machine Platform, App Installer, disk space, or MSIX
   servicing is broken.
-- Your proxy is a PAC-only or NTLM/Kerberos-only setup that requires an
-  authenticated local relay and cannot be represented as a simple proxy URL.
+- Your proxy is PAC-only or NTLM/Kerberos-only and cannot be represented as a
+  simple proxy URL without a local relay.
 
-## Usage
+## Setup Options
 
-If you want an AI assistant to do the setup for you, copy/paste the prompt in
-[`AI-ASSISTANT-PROMPT.md`](AI-ASSISTANT-PROMPT.md).
+### Option A: Let an AI Assistant Help
 
-Download these files into the same folder:
+If you want ChatGPT, Copilot, Codex, Claude, or another local-capable assistant
+to do the setup with you, copy/paste:
 
-- `Start-ClaudeDesktopProxy.ps1`
-- `Start-ClaudeDesktopProxy.cmd`
-- `Install-Shortcut.ps1` (optional, only needed to create a shortcut)
+[`AI-ASSISTANT-PROMPT.md`](AI-ASSISTANT-PROMPT.md)
 
-For the simplest use, double-click:
+That prompt tells the assistant to run dry-run checks first, avoid deleting
+Claude data, avoid changing system proxy settings, and ask before creating a
+shortcut.
 
-```text
-Start-ClaudeDesktopProxy.cmd
-```
+### Option B: Download ZIP
 
-Or run the PowerShell script directly:
+1. Download:
+   <https://github.com/king-sheol/claude-desktop-windows-proxy-launcher/archive/refs/heads/main.zip>
+2. Extract the ZIP.
+3. Open the extracted folder.
+4. Run `Start-ClaudeDesktopProxy.cmd`, or use the PowerShell commands in
+   "Emergency Quick Start".
 
-```powershell
-.\Start-ClaudeDesktopProxy.ps1
-```
-
-By default the script reads the current Windows user proxy from:
-
-```text
-HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings
-```
-
-It also checks `HTTPS_PROXY`, `HTTP_PROXY`, and `ALL_PROXY`.
-
-To pass a proxy explicitly:
+### Option C: Git Clone
 
 ```powershell
-.\Start-ClaudeDesktopProxy.ps1 -ProxyServer "http://127.0.0.1:10808"
+git clone https://github.com/king-sheol/claude-desktop-windows-proxy-launcher.git "$env:USERPROFILE\Documents\ClaudeDesktopProxyLauncher"
+cd "$env:USERPROFILE\Documents\ClaudeDesktopProxyLauncher"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Start-ClaudeDesktopProxy.ps1 -DryRun
 ```
 
-If Claude is already running without the correct flags, restart it through the
-launcher:
+## Install a Persistent Shortcut
+
+The launcher can create a new shortcut named `Claude Desktop Proxy Launcher`.
+It does not replace or modify the official Claude shortcut.
+
+Create a Desktop shortcut:
 
 ```powershell
-.\Start-ClaudeDesktopProxy.ps1 -RestartExisting
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-Shortcut.ps1
 ```
 
-To inspect what would be launched without starting Claude:
+Create both Desktop and Start Menu shortcuts:
 
 ```powershell
-.\Start-ClaudeDesktopProxy.ps1 -DryRun
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-Shortcut.ps1 -Scope Both
 ```
 
-If GPU flags make things worse on your system:
+Preview what would be created without writing anything:
 
 ```powershell
-.\Start-ClaudeDesktopProxy.ps1 -NoGpuWorkaround
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-Shortcut.ps1 -DryRun -Scope Both
 ```
 
-## Optional shortcut install
-
-To create or update a new Desktop shortcut named `Claude Desktop Proxy
-Launcher`:
-
-```powershell
-.\Install-Shortcut.ps1
-```
-
-To add it to both Desktop and Start Menu:
-
-```powershell
-.\Install-Shortcut.ps1 -Scope Both
-```
-
-To bake in a specific proxy for the shortcut:
-
-```powershell
-.\Install-Shortcut.ps1 -ProxyServer "http://127.0.0.1:10808"
-```
-
-If your proxy can change over time, omit `-ProxyServer`. The shortcut will then
+If your proxy can change over time, do not pass `-ProxyServer`. The shortcut will
 launch the wrapper without a fixed proxy, and the launcher will resolve the
-current Windows/env proxy each time it starts.
+current Windows/env proxy each time.
 
-To preview what would be created without writing anything:
+Only bake in a proxy if you really want a fixed value:
 
 ```powershell
-.\Install-Shortcut.ps1 -DryRun -Scope Both
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-Shortcut.ps1 -Scope Both -ProxyServer "http://127.0.0.1:10808"
 ```
 
-The installer creates or updates only the new `Claude Desktop Proxy Launcher`
-shortcut. It does not replace or modify the official Claude shortcut. The
-shortcut points to `Start-ClaudeDesktopProxy.cmd`; on each launch, the launcher
-searches for the current Claude executable again, so normal Claude updates can
-move `Claude.exe` without requiring the shortcut itself to change.
+## What Success Looks Like
 
-The installed shortcut passes `-RestartExisting` by default so it can replace an
-already-running Claude instance that was started without the proxy-safe flags.
+- Claude Desktop opens through `Start-ClaudeDesktopProxy.cmd` or the new
+  `Claude Desktop Proxy Launcher` shortcut.
+- The app no longer stops at "Could not connect to Claude".
+- The dry-run output finds a `Claude.exe` path.
+- If a proxy is resolved, the launch arguments include `--proxy-server=...`.
 
-If you move or delete this launcher folder, recreate the shortcut from the new
-location.
+## How to Undo
 
-## What it does
+This workaround is intentionally easy to remove:
 
-The launcher:
+1. Close Claude Desktop.
+2. Delete the `Claude Desktop Proxy Launcher` shortcut from Desktop and/or Start
+   Menu if you created it.
+3. Delete the folder where you extracted or cloned this repository.
 
-1. Finds Claude Desktop in the current MSIX/AppX package first.
-2. Falls back to common Win32 install paths, Start Menu/Desktop shortcuts, and
-   Windows uninstall registry entries.
+Your Claude chats, projects, workspace folders, settings, plugins, and skills
+are not stored in this launcher folder.
+
+## What This Changes
+
+This launcher:
+
+1. Finds Claude Desktop in MSIX/AppX install locations first.
+2. Falls back to common Win32/Squirrel install paths, Start Menu/Desktop
+   shortcuts, and Windows uninstall registry entries.
 3. Resolves a proxy from explicit argument, Windows user proxy, or env vars.
 4. Sets child-process env vars:
    - `HTTP_PROXY`
@@ -188,21 +168,57 @@ If Claude is installed in a custom location that cannot be discovered
 automatically, pass it explicitly:
 
 ```powershell
-.\Start-ClaudeDesktopProxy.ps1 -ClaudeExe "C:\Path\To\Claude.exe"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Start-ClaudeDesktopProxy.ps1 -ClaudeExe "C:\Path\To\Claude.exe"
 ```
 
-## Safety notes
+## What This Does Not Change
 
-- This does not remove `%APPDATA%\Claude`, `%LOCALAPPDATA%\Packages`, workspace
+- It does not remove `%APPDATA%\Claude`, `%LOCALAPPDATA%\Packages`, workspace
   folders, plugins, sessions, or settings.
-- This does not patch `app.asar` or the signed MSIX payload.
-- This does not set machine-wide proxy settings.
-- This is a workaround, not a substitute for a proper upstream fix in Claude
-  Desktop's Windows proxy handling.
-- Do not use this project to bypass authentication, subscriptions, rate limits,
-  regional availability, or any Anthropic policy.
+- It does not patch `app.asar` or any signed Anthropic package.
+- It does not set machine-wide proxy settings.
+- It does not modify WinHTTP, firewall, DNS, Hyper-V, or Windows services.
+- It does not replace the official Claude shortcut.
+- It does not bypass authentication, subscriptions, rate limits, regional
+  availability, or any Anthropic policy.
 
-## Upstream fix suggestion
+## Why No EXE?
+
+This project intentionally ships as a readable PowerShell script plus a tiny CMD
+wrapper instead of an unsigned EXE. An unsigned executable from a small GitHub
+repository is harder for users to audit and is more likely to trigger Windows
+SmartScreen or antivirus warnings.
+
+The CMD file is only a convenience wrapper for double-click launching. The real
+logic stays in `Start-ClaudeDesktopProxy.ps1`, where users can inspect exactly
+what will run before they run it.
+
+## Observed Version and Scope
+
+This workaround was created after a June 2026 Claude Desktop for Windows update
+wave. The symptoms were not limited to one installer type: they may appear with
+MSIX/AppX builds as well as traditional EXE/Squirrel/Win32 installs.
+
+It was locally verified against the MSIX/AppX package version `1.13576.0.0`
+(`Claude_1.13576.0.0_x64__pzs8sxrjxfjjc`), and the launcher intentionally
+searches for both MSIX/AppX and Win32 install locations.
+
+It may also help nearby Windows builds with the same symptoms, but this project
+does not claim an official regression window. The practical symptom is that the
+main Electron/Chromium UI appears unable to use the same proxy path that works in
+the browser or in some child processes. Passing Chromium's `--proxy-server`
+explicitly at launch can restore connectivity for that UI layer.
+
+## Files in This Repository
+
+- `Start-ClaudeDesktopProxy.cmd`: double-click wrapper for normal use.
+- `Start-ClaudeDesktopProxy.ps1`: main launcher logic.
+- `Install-Shortcut.ps1`: optional shortcut installer.
+- `AI-ASSISTANT-PROMPT.md`: prompt for a local-capable AI assistant.
+- `tests/`: developer verification scripts. Normal users do not need this
+  folder to launch Claude.
+
+## Upstream Fix Suggestion
 
 Claude Desktop should provide a supported proxy configuration path for Windows
 Desktop, including the main Electron webview and the Claude Code / MCP child
