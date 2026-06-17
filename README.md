@@ -12,6 +12,17 @@ This launcher does not delete Claude data, does not modify the MSIX package, and
 does not change system proxy settings. It only starts `Claude.exe` with explicit
 Chromium proxy flags and proxy environment variables for child processes.
 
+## Why no EXE?
+
+This project intentionally ships as a readable PowerShell script plus a tiny CMD
+wrapper instead of an unsigned EXE. An unsigned executable from a small GitHub
+repository is harder for users to audit and is more likely to trigger Windows
+SmartScreen or antivirus warnings.
+
+The CMD file is only a convenience wrapper for double-click launching. The real
+logic stays in `Start-ClaudeDesktopProxy.ps1`, where users can inspect exactly
+what will run before they run it.
+
 ## Observed version and scope
 
 This workaround was created after a June 2026 Claude Desktop for Windows update
@@ -58,7 +69,13 @@ Download both files into the same folder:
 - `Start-ClaudeDesktopProxy.ps1`
 - `Start-ClaudeDesktopProxy.cmd`
 
-Run:
+For the simplest use, double-click:
+
+```text
+Start-ClaudeDesktopProxy.cmd
+```
+
+Or run the PowerShell script directly:
 
 ```powershell
 .\Start-ClaudeDesktopProxy.ps1
