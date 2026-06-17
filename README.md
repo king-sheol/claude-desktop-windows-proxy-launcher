@@ -7,13 +7,35 @@ your browser.
 Not affiliated with Anthropic. This project does not modify, patch, decompile,
 redistribute, or replace Anthropic software.
 
+## TL;DR / Download
+
+Most users should download the latest release ZIP:
+
+<https://github.com/king-sheol/claude-desktop-windows-proxy-launcher/releases/latest>
+
+Then:
+
+1. Extract the ZIP into a normal folder, for example:
+   `%USERPROFILE%\Documents\ClaudeDesktopProxyLauncher`
+2. Double-click:
+   `Start-ClaudeDesktopProxy.cmd`
+3. If that works, optionally install a persistent shortcut:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-Shortcut.ps1 -Scope Both
+```
+
+If you want a local-capable AI assistant to walk through the setup safely, copy
+[`AI-ASSISTANT-PROMPT.md`](AI-ASSISTANT-PROMPT.md) into ChatGPT, Copilot, Codex,
+Claude, or another assistant that can inspect and run local files.
+
 ## Emergency Quick Start
 
 Use this if Claude Desktop is crashing, stuck in a Windows Repair/Restore loop,
 showing a blank window, or saying "Could not connect to Claude".
 
-1. Download this repository as a ZIP:
-   <https://github.com/king-sheol/claude-desktop-windows-proxy-launcher/archive/refs/heads/main.zip>
+1. Download the latest release ZIP:
+   <https://github.com/king-sheol/claude-desktop-windows-proxy-launcher/releases/latest>
 2. Extract the ZIP into a normal folder, for example:
    `%USERPROFILE%\Documents\ClaudeDesktopProxyLauncher`
 3. Open that folder.
