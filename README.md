@@ -64,6 +64,9 @@ explicitly at launch can restore connectivity for that UI layer.
 
 ## Usage
 
+If you want an AI assistant to do the setup for you, copy/paste the prompt in
+[`AI-ASSISTANT-PROMPT.md`](AI-ASSISTANT-PROMPT.md).
+
 Download these files into the same folder:
 
 - `Start-ClaudeDesktopProxy.ps1`
