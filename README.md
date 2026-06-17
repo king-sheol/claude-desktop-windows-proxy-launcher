@@ -64,10 +64,11 @@ explicitly at launch can restore connectivity for that UI layer.
 
 ## Usage
 
-Download both files into the same folder:
+Download these files into the same folder:
 
 - `Start-ClaudeDesktopProxy.ps1`
 - `Start-ClaudeDesktopProxy.cmd`
+- `Install-Shortcut.ps1` (optional, only needed to create a shortcut)
 
 For the simplest use, double-click:
 
@@ -113,6 +114,49 @@ If GPU flags make things worse on your system:
 ```powershell
 .\Start-ClaudeDesktopProxy.ps1 -NoGpuWorkaround
 ```
+
+## Optional shortcut install
+
+To create or update a new Desktop shortcut named `Claude Desktop Proxy
+Launcher`:
+
+```powershell
+.\Install-Shortcut.ps1
+```
+
+To add it to both Desktop and Start Menu:
+
+```powershell
+.\Install-Shortcut.ps1 -Scope Both
+```
+
+To bake in a specific proxy for the shortcut:
+
+```powershell
+.\Install-Shortcut.ps1 -ProxyServer "http://127.0.0.1:10808"
+```
+
+If your proxy can change over time, omit `-ProxyServer`. The shortcut will then
+launch the wrapper without a fixed proxy, and the launcher will resolve the
+current Windows/env proxy each time it starts.
+
+To preview what would be created without writing anything:
+
+```powershell
+.\Install-Shortcut.ps1 -DryRun -Scope Both
+```
+
+The installer creates or updates only the new `Claude Desktop Proxy Launcher`
+shortcut. It does not replace or modify the official Claude shortcut. The
+shortcut points to `Start-ClaudeDesktopProxy.cmd`; on each launch, the launcher
+searches for the current Claude executable again, so normal Claude updates can
+move `Claude.exe` without requiring the shortcut itself to change.
+
+The installed shortcut passes `-RestartExisting` by default so it can replace an
+already-running Claude instance that was started without the proxy-safe flags.
+
+If you move or delete this launcher folder, recreate the shortcut from the new
+location.
 
 ## What it does
 
