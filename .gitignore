@@ -1,2 +1,4 @@
-github-comment.md
-reddit-post.md
+# Local publication drafts and private notes.
+drafts/
+*.local.md
+*.private.md

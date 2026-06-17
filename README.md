@@ -12,6 +12,18 @@ This launcher does not delete Claude data, does not modify the MSIX package, and
 does not change system proxy settings. It only starts `Claude.exe` with explicit
 Chromium proxy flags and proxy environment variables for child processes.
 
+## Observed version and scope
+
+This workaround was created after a June 2026 Claude Desktop for Windows update
+and was locally verified against the MSIX/AppX package version `1.13576.0.0`
+(`Claude_1.13576.0.0_x64__pzs8sxrjxfjjc`).
+
+It may also help nearby Windows builds with the same symptoms, but this project
+does not claim an official regression window. The practical symptom is that the
+main Electron/Chromium UI appears unable to use the same proxy path that works in
+the browser or in some child processes. Passing Chromium's `--proxy-server`
+explicitly at launch can restore connectivity for that UI layer.
+
 ## When this may help
 
 - Claude Desktop on Windows shows "Could not connect to Claude".
