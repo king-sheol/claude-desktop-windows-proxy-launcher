@@ -128,6 +128,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-Shortcut.ps1 -
 - The app no longer stops at "Could not connect to Claude".
 - The dry-run output finds a `Claude.exe` path.
 - If a proxy is resolved, the launch arguments include `--proxy-server=...`.
+- The launcher reports that a visible Claude window was detected after launch.
 
 ## How to Undo
 
@@ -162,7 +163,15 @@ This launcher:
 --disable-quic
 --disable-gpu
 --disable-gpu-compositing
+--disable-gpu-sandbox
+--disable-accelerated-2d-canvas
+--disable-accelerated-video-decode
+--disable-features=Vulkan,UseSkiaRenderer,CanvasOopRasterization,WebGPU,DawnGraphite
 ```
+
+The launcher intentionally does not pass `--disable-software-rasterizer`. On at
+least one affected Windows 11 setup, that flag allowed the process to survive
+but prevented Claude from creating a usable visible window.
 
 If Claude is installed in a custom location that cannot be discovered
 automatically, pass it explicitly:

@@ -5,6 +5,8 @@ param(
   [switch]$RestartExisting,
   [switch]$NoGpuWorkaround,
   [switch]$NoQuicWorkaround,
+  [switch]$NoLaunchHealthCheck,
+  [int]$PostLaunchCheckSeconds = 12,
   [switch]$DryRun
 )
 
@@ -330,6 +332,57 @@ function Stop-ExistingClaudeProcesses {
   }
 }
 
+function Get-ClaudeProcessesForLaunch {
+  param(
+    [string]$ExePath,
+    [string]$ResolvedProxy
+  )
+
+  $target = $ExePath.ToLowerInvariant()
+  @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+    Where-Object {
+      if (-not $_.ExecutablePath -or ($_.ExecutablePath.ToLowerInvariant() -ne $target)) {
+        $false
+      }
+      elseif ([string]::IsNullOrWhiteSpace($ResolvedProxy)) {
+        $true
+      }
+      else {
+        $commandLine = [string]$_.CommandLine
+        $commandLine.IndexOf("--proxy-server=$ResolvedProxy", [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+      }
+    })
+}
+
+function Get-VisibleClaudeProcessesForLaunch {
+  param(
+    [string]$ExePath,
+    [string]$ResolvedProxy
+  )
+
+  foreach ($proc in @(Get-ClaudeProcessesForLaunch -ExePath $ExePath -ResolvedProxy $ResolvedProxy)) {
+    $process = Get-Process -Id $proc.ProcessId -ErrorAction SilentlyContinue
+    if ($process -and ($process.MainWindowHandle -ne 0) -and $process.Responding) {
+      $proc
+    }
+  }
+}
+
+function Wait-ForVisibleClaudeWindow {
+  param(
+    [string]$ExePath,
+    [string]$ResolvedProxy,
+    [int]$TimeoutSeconds
+  )
+
+  $deadline = (Get-Date).AddSeconds([Math]::Max(1, $TimeoutSeconds))
+  do {
+    Start-Sleep -Milliseconds 500
+  } while ((Get-Date) -lt $deadline)
+
+  @(Get-VisibleClaudeProcessesForLaunch -ExePath $ExePath -ResolvedProxy $ResolvedProxy)
+}
+
 function Set-ProxyEnvironment {
   param([string]$ResolvedProxy)
 
@@ -361,6 +414,10 @@ function Get-ClaudeArguments {
   if (-not $NoGpuWorkaround) {
     $arguments += '--disable-gpu'
     $arguments += '--disable-gpu-compositing'
+    $arguments += '--disable-gpu-sandbox'
+    $arguments += '--disable-accelerated-2d-canvas'
+    $arguments += '--disable-accelerated-video-decode'
+    $arguments += '--disable-features=Vulkan,UseSkiaRenderer,CanvasOopRasterization,WebGPU,DawnGraphite'
   }
 
   return $arguments
@@ -378,6 +435,8 @@ $result = [pscustomobject]@{
   proxyServer = $proxy.ProxyServer
   proxySource = $proxy.Source
   restartExisting = [bool]$RestartExisting
+  launchHealthCheck = -not [bool]$NoLaunchHealthCheck
+  postLaunchCheckSeconds = [int]$PostLaunchCheckSeconds
   arguments = $arguments
 }
 
@@ -400,3 +459,14 @@ else {
 }
 
 Start-Process -FilePath $exe -ArgumentList $arguments -WorkingDirectory $workingDirectory | Out-Null
+
+if (-not $NoLaunchHealthCheck) {
+  $visibleProcesses = @(Wait-ForVisibleClaudeWindow -ExePath $exe -ResolvedProxy $proxy.ProxyServer -TimeoutSeconds $PostLaunchCheckSeconds)
+  if ($visibleProcesses.Count -eq 0) {
+    Write-Warning "Claude was launched, but no visible main window was detected after $PostLaunchCheckSeconds second(s)."
+    Write-Warning 'If the process is stuck in the background, close Claude from Task Manager and re-run this launcher with -RestartExisting.'
+    exit 1
+  }
+
+  Write-Host "Claude visible window detected ($($visibleProcesses.Count) process match)."
+}
