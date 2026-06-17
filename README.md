@@ -81,7 +81,8 @@ If GPU flags make things worse on your system:
 The launcher:
 
 1. Finds Claude Desktop in the current MSIX/AppX package first.
-2. Falls back to a few common per-user Win32 install paths.
+2. Falls back to common Win32 install paths, Start Menu/Desktop shortcuts, and
+   Windows uninstall registry entries.
 3. Resolves a proxy from explicit argument, Windows user proxy, or env vars.
 4. Sets child-process env vars:
    - `HTTP_PROXY`
@@ -96,6 +97,13 @@ The launcher:
 --disable-quic
 --disable-gpu
 --disable-gpu-compositing
+```
+
+If Claude is installed in a custom location that cannot be discovered
+automatically, pass it explicitly:
+
+```powershell
+.\Start-ClaudeDesktopProxy.ps1 -ClaudeExe "C:\Path\To\Claude.exe"
 ```
 
 ## Safety notes

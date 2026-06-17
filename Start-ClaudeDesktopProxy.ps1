@@ -125,6 +125,93 @@ function Resolve-ClaudeProxy {
   }
 }
 
+function Join-OptionalPath {
+  param(
+    [string]$Base,
+    [string]$Child
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Base)) {
+    return $null
+  }
+
+  return (Join-Path $Base $Child)
+}
+
+function Add-ClaudeCandidate {
+  param(
+    [System.Collections.Generic.List[string]]$Candidates,
+    [string]$Path
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Path)) {
+    return
+  }
+
+  try {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+      return
+    }
+
+    $resolved = (Resolve-Path -LiteralPath $Path -ErrorAction Stop).Path
+    if ($resolved -notmatch '(?i)\\claude\.exe$') {
+      return
+    }
+
+    foreach ($candidate in $Candidates) {
+      if ([string]::Equals($candidate, $resolved, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return
+      }
+    }
+
+    [void]$Candidates.Add($resolved)
+  } catch {
+    return
+  }
+}
+
+function Add-ClaudeCandidatePattern {
+  param(
+    [System.Collections.Generic.List[string]]$Candidates,
+    [string]$Pattern
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Pattern)) {
+    return
+  }
+
+  Get-ChildItem -Path $Pattern -ErrorAction SilentlyContinue |
+    Sort-Object -Property LastWriteTime -Descending |
+    ForEach-Object { Add-ClaudeCandidate -Candidates $Candidates -Path $_.FullName }
+}
+
+function Add-ClaudeCandidateFromDirectory {
+  param(
+    [System.Collections.Generic.List[string]]$Candidates,
+    [string]$Directory
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Directory)) {
+    return
+  }
+
+  foreach ($relativePath in @('app\Claude.exe', 'Claude.exe', 'app\claude.exe', 'claude.exe')) {
+    Add-ClaudeCandidate -Candidates $Candidates -Path (Join-Path $Directory $relativePath)
+  }
+}
+
+function Get-ShortcutTargetPath {
+  param([string]$ShortcutPath)
+
+  try {
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($ShortcutPath)
+    return $shortcut.TargetPath
+  } catch {
+    return $null
+  }
+}
+
 function Find-ClaudeExecutable {
   if (-not [string]::IsNullOrWhiteSpace($ClaudeExe)) {
     if (Test-Path -LiteralPath $ClaudeExe) {
@@ -133,13 +220,24 @@ function Find-ClaudeExecutable {
     throw "The path passed via -ClaudeExe does not exist: $ClaudeExe"
   }
 
-  $pkg = @(Get-AppxPackage -Name Claude -ErrorAction SilentlyContinue |
-    Sort-Object -Property Version -Descending |
-    Select-Object -First 1)[0]
-  if ($pkg -and $pkg.InstallLocation) {
-    $msixExe = Join-Path $pkg.InstallLocation 'app\Claude.exe'
-    if (Test-Path -LiteralPath $msixExe) {
-      return $msixExe
+  $candidates = New-Object 'System.Collections.Generic.List[string]'
+  $seenPackages = @{}
+
+  foreach ($pkg in @(Get-AppxPackage -Name Claude -ErrorAction SilentlyContinue)) {
+    if ($pkg -and $pkg.PackageFullName -and -not $seenPackages.ContainsKey($pkg.PackageFullName)) {
+      $seenPackages[$pkg.PackageFullName] = $pkg
+    }
+  }
+
+  foreach ($pkg in @(Get-AppxPackage -Name '*Claude*' -ErrorAction SilentlyContinue)) {
+    if ($pkg -and $pkg.PackageFullName -and -not $seenPackages.ContainsKey($pkg.PackageFullName)) {
+      $seenPackages[$pkg.PackageFullName] = $pkg
+    }
+  }
+
+  foreach ($pkg in @($seenPackages.Values | Sort-Object -Property Version -Descending)) {
+    if ($pkg.InstallLocation) {
+      Add-ClaudeCandidateFromDirectory -Candidates $candidates -Directory $pkg.InstallLocation
     }
   }
 
@@ -147,19 +245,71 @@ function Find-ClaudeExecutable {
     (Join-Path $env:LOCALAPPDATA 'AnthropicClaude\app-*\Claude.exe'),
     (Join-Path $env:LOCALAPPDATA 'AnthropicClaude\app-*\claude.exe'),
     (Join-Path $env:LOCALAPPDATA 'Programs\Claude\Claude.exe'),
-    (Join-Path $env:LOCALAPPDATA 'Programs\claude-desktop\Claude.exe')
+    (Join-Path $env:LOCALAPPDATA 'Programs\Claude Desktop\Claude.exe'),
+    (Join-Path $env:LOCALAPPDATA 'Programs\claude-desktop\Claude.exe'),
+    (Join-OptionalPath $env:ProgramFiles 'Anthropic\Claude\Claude.exe'),
+    (Join-OptionalPath $env:ProgramFiles 'Claude\Claude.exe'),
+    (Join-OptionalPath $env:ProgramFiles 'Claude Desktop\Claude.exe'),
+    (Join-OptionalPath ${env:ProgramFiles(x86)} 'Anthropic\Claude\Claude.exe'),
+    (Join-OptionalPath ${env:ProgramFiles(x86)} 'Claude\Claude.exe'),
+    (Join-OptionalPath ${env:ProgramFiles(x86)} 'Claude Desktop\Claude.exe')
   )
 
   foreach ($pattern in $patterns) {
-    $match = @(Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue |
-      Sort-Object -Property LastWriteTime -Descending |
-      Select-Object -First 1)
-    if ($match.Count -gt 0) {
-      return $match[0].FullName
-    }
+    Add-ClaudeCandidatePattern -Candidates $candidates -Pattern $pattern
   }
 
-  throw 'Claude.exe was not found. Pass the full path with -ClaudeExe.'
+  $shortcutPatterns = @(
+    (Join-OptionalPath $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Claude*.lnk'),
+    (Join-OptionalPath $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Claude*.lnk'),
+    (Join-OptionalPath ([Environment]::GetFolderPath('Desktop')) 'Claude*.lnk'),
+    (Join-OptionalPath ([Environment]::GetFolderPath('CommonDesktopDirectory')) 'Claude*.lnk')
+  )
+
+  foreach ($shortcutPattern in $shortcutPatterns) {
+    if ([string]::IsNullOrWhiteSpace($shortcutPattern)) {
+      continue
+    }
+
+    Get-ChildItem -Path $shortcutPattern -ErrorAction SilentlyContinue |
+      Sort-Object -Property LastWriteTime -Descending |
+      ForEach-Object {
+        Add-ClaudeCandidate -Candidates $candidates -Path (Get-ShortcutTargetPath -ShortcutPath $_.FullName)
+      }
+  }
+
+  $uninstallRoots = @(
+    'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+    'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+    'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+  )
+
+  foreach ($root in $uninstallRoots) {
+    Get-ChildItem -Path $root -ErrorAction SilentlyContinue |
+      ForEach-Object { Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue } |
+      Where-Object { $_.DisplayName -match '(?i)\bClaude\b|Anthropic' } |
+      ForEach-Object {
+        if ($_.InstallLocation) {
+          Add-ClaudeCandidateFromDirectory -Candidates $candidates -Directory $_.InstallLocation
+        }
+
+        if ($_.DisplayIcon) {
+          $iconPath = ($_.DisplayIcon -replace ',\d+$', '').Trim('"')
+          Add-ClaudeCandidate -Candidates $candidates -Path $iconPath
+        }
+      }
+  }
+
+  if ($candidates.Count -gt 0) {
+    return $candidates[0]
+  }
+
+  throw @'
+Claude.exe was not found automatically.
+
+Pass the full path with -ClaudeExe, for example:
+  .\Start-ClaudeDesktopProxy.ps1 -ClaudeExe "C:\Path\To\Claude.exe"
+'@
 }
 
 function Stop-ExistingClaudeProcesses {
